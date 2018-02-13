@@ -22,6 +22,7 @@ how to instantiate a window and draw a sprite in it, but had troubles due to
 [this issue][4].
 
 **Attempt #2: ggez.rs**
+
 I decided to give up and try ggez.rs which was also mentioned on a cool talk
 (you can find the [video on youtube](5)) given by @lisapassing at RustFest
 Zürich 2017.
