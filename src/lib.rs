@@ -1,10 +1,10 @@
-#[derive(Default, Debug)]
-pub struct Starfield {
-    pub pos_x: f32,
-    pub pos_y: f32,
-    pub speed: f32,
-    pub color: u8,
-}
+extern crate rand;
+extern crate ggez;
+
+mod main_state;
+mod starfield;
+
+pub use main_state::MainState;
 
 #[cfg(test)]
 mod tests {
