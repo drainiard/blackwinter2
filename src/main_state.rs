@@ -18,6 +18,7 @@ pub struct MainState {
     stars: Vec<Starfield>,
     counter: u8,
     font: graphics::Font,
+    music: audio::Source,
 }
 
 impl MainState {
@@ -38,6 +39,10 @@ impl MainState {
             stars.push(star);
         }
 
+        let music = audio::Source::new(ctx, Path::new("/bgplay.ogg"))?;
+        println!("{:?}", music.play());
+
+
         let s = MainState {
             pos_x: 160.0 - 49. / 2.,
             pos_y: 210.0 - 38. / 2.,
@@ -46,6 +51,7 @@ impl MainState {
             stars: stars,
             counter: 0,
             font: font,
+            music: music,
         };
         Ok(s)
     }
@@ -102,6 +108,12 @@ impl event::EventHandler for MainState {
                 star.pos_x = Range::new(0., 328.).ind_sample(&mut rng);
                 star.speed = Range::new(0., 8. / 3.).ind_sample(&mut rng) + 2. / 3.;
             }
+        }
+
+        if self.music.stopped() {
+            self.music.play()?;
+        } else if self.music.paused() {
+            self.music.resume();
         }
 
         //timer::yield_now();
