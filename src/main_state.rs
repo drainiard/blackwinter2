@@ -54,7 +54,7 @@ impl MainState {
             font: font,
             music: music,
             window: RectSize { width: width, height: height },
-            pos: Point2::new(width - 49. / 2., height - 38. / 2.),
+            pos: Point2::new((width - 49.) / 2., (height - 38.) / 2.),
             speed: 3.0,
             moving: HashSet::new(),
             stars: stars,
@@ -167,7 +167,7 @@ impl event::EventHandler for MainState {
         let mut rng = rand::thread_rng();
         for star in self.stars.iter_mut() {
             star.pos.y += star.speed;
-            if star.pos.y > self.window.width {
+            if star.pos.y > self.window.height {
                 star.pos.y = 0.;
                 star.pos.x = Range::new(0., self.window.width).ind_sample(&mut rng);
                 star.speed = Range::new(0.5 / 3., 4. / 3.).ind_sample(&mut rng);
