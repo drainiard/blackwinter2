@@ -1,10 +1,17 @@
 # Black Winter 2
+
 A game originally made by [Wong Yat Seng][1], rewritten in Rust.
 
 ## Dev Notes
-Since the original project was written in VB6, sizes like window width and
-height were expressed in twips. To translate them in pixels I used this website:
- - [Convert twips to pixels][2]
+
+### Legacy units and formats
+
+- **Twips**
+  Since the original project was written in VB6, sizes like window width and
+  height were expressed in twips. To translate them in pixels we can use this website: [Convert twips to pixels][2]
+
+- **FRX**
+  Images were mostly embedded in `.frx` files as binary blobs, so we should extract them as standalone, standard format (e.g. PNG or JPG) files. This is what `extract_frx` is for.
 
 ---
 
@@ -15,7 +22,7 @@ height were expressed in twips. To translate them in pixels I used this website:
 
 Before starting the project I went to [arewegameyet](http://arewegameyet.com)
 (a website that aggregates useful info and links to game-related Rust libraries
- and resources).
+and resources).
 
 This first attempt didn't go very well, I tried running [an example][3] to see
 how to instantiate a window and draw a sprite in it, but had troubles due to
@@ -28,9 +35,6 @@ I decided to give up and try ggez.rs which was also mentioned on a cool talk
 Zürich 2017.
 
 ggez appears simpler to understand.
-
-Sadly I'm [having issues here as well](6), apparently all Rust graphics libraries
-depend on an openGL version that is not available on my OS right now.
 
 ---
 

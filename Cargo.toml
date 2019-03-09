@@ -6,3 +6,6 @@ authors = ["Nadir Sampaoli <nadirsampaoli@gmail.com>"]
 [dependencies]
 rand = "0.4"
 ggez = "*"
+
+[workspace]
+members = ["extract_frx"]
