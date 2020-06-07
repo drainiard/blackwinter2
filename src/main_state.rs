@@ -1,8 +1,11 @@
 use bullet::{Bullet, Vector2D};
-use ggez::event::{Keycode, Mod};
-use ggez::graphics::Point2;
-use ggez::timer;
-use ggez::*;
+use ggez::audio;
+use ggez::audio::SoundSource;
+use ggez::event::{self, KeyCode, KeyMods};
+use ggez::graphics;
+use ggez::graphics::{Color, DrawParam, FilterMode};
+use ggez::nalgebra::Point2;
+use ggez::{timer, Context, GameResult};
 use rand;
 use rand::distributions::{IndependentSample, Range};
 use starfield::Starfield;
@@ -20,23 +23,20 @@ pub struct MainState {
     font: graphics::Font,
     music: audio::Source,
     window: RectSize,
-    pos: Point2,
+    pos: Point2<f32>,
     speed: f32,
-    moving: HashSet<Keycode>,
+    moving: HashSet<KeyCode>,
     stars: Vec<Starfield>,
     counter: u8,
     bullets: Vec<Bullet>,
+    target_fps: u32,
 }
 
 impl MainState {
-    pub fn new(ctx: &mut Context) -> GameResult<Self> {
-        ctx.print_resource_stats();
+    pub fn new(ctx: &mut Context, (width, height): (f32, f32)) -> GameResult<Self> {
+        ggez::filesystem::print_all(ctx);
 
-        let (width, height) = (
-            ctx.conf.window_mode.width as f32,
-            ctx.conf.window_mode.height as f32,
-        );
-        let font = graphics::Font::new(ctx, "/TerminusTTF.ttf", 8)?;
+        let font = graphics::Font::new(ctx, "/TerminusTTF.ttf")?;
 
         let mut rng = rand::thread_rng();
         let mut stars = Vec::with_capacity(100);
@@ -53,7 +53,8 @@ impl MainState {
         }
 
         let music = audio::Source::new(ctx, Path::new("/bgplay.ogg"))?;
-        println!("{:?}", music.play());
+
+        let target_fps = 60;
 
         let s = MainState {
             font: font,
@@ -68,11 +69,12 @@ impl MainState {
             stars: stars,
             counter: 0,
             bullets: Vec::new(),
+            target_fps,
         };
         Ok(s)
     }
 
-    fn shoot_main(&mut self, ctx: &mut Context) -> GameResult<()> {
+    fn shoot_main(&mut self, ctx: &mut Context) -> GameResult {
         // TODO add logic to change behavior based on configured gun
 
         let image = graphics::Image::new(ctx, Path::new("/img0-1.png"))?;
@@ -92,30 +94,31 @@ impl MainState {
         Ok(())
     }
 
-    fn draw_background(&mut self, ctx: &mut Context) -> GameResult<()> {
-        graphics::set_color(ctx, graphics::Color::from_rgb(255, 255, 255))?;
-        graphics::set_background_color(ctx, graphics::Color::from_rgb(0, 5, 10));
-        Ok(())
-    }
+    fn draw_stars(&mut self, ctx: &mut Context) -> GameResult {
+        let mut mb = graphics::MeshBuilder::new();
 
-    fn draw_stars(&mut self, ctx: &mut Context) -> GameResult<()> {
         for star in self.stars.iter() {
-            let point = Point2::new(star.pos.x, star.pos.y);
-            graphics::set_color(
-                ctx,
-                graphics::Color::from_rgb(star.color, star.color, star.color),
+            let color = Color::from_rgb(star.color, star.color, star.color);
+            mb.line(
+                &[
+                    Point2::new(star.pos.x, star.pos.y),
+                    Point2::new(star.pos.x, star.pos.y + 1.),
+                ],
+                1.,
+                color,
             )?;
-            graphics::points(ctx, &[point], 1.)?;
         }
-        Ok(())
+
+        let mesh = mb.build(ctx)?;
+        graphics::draw(ctx, &mesh, DrawParam::default())
     }
 
-    fn draw_player(&mut self, ctx: &mut Context) -> GameResult<()> {
-        graphics::set_color(ctx, graphics::Color::from_rgb(255, 255, 255))?;
+    fn draw_player(&mut self, ctx: &mut Context) -> GameResult {
         self.counter = (self.counter + 1) % (PLAYER_SPRITES_COUNT * 3);
         let counter: u8 = self.counter / 3;
         let image = graphics::Image::new(ctx, Path::new(&format!("/img0-{}.png", counter + 1)))?;
-        graphics::draw(ctx, &image, Point2::new(self.pos.x, self.pos.y), 0.)?;
+        let params: DrawParam = DrawParam::default().dest(Point2::new(self.pos.x, self.pos.y));
+        graphics::draw(ctx, &image, params)?;
 
         let bullet_image = graphics::Image::new(ctx, Path::new(&format!("/img6-1.png")))?;
 
@@ -131,9 +134,10 @@ impl MainState {
             self.bullets.swap_remove(i);
         }
 
+        let base_params: DrawParam = DrawParam::default();
         for bullet in self.bullets.iter() {
             let point = bullet.position.to_point2();
-            graphics::draw(ctx, &bullet_image, point, 0.)?;
+            graphics::draw(ctx, &bullet_image, base_params.dest(point))?;
         }
 
         Ok(())
@@ -141,50 +145,56 @@ impl MainState {
 }
 
 impl event::EventHandler for MainState {
-    fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
-        for bullet in self.bullets.iter_mut() {
-            bullet.update(ctx)?;
-        }
+    fn update(&mut self, ctx: &mut Context) -> GameResult {
+        self.music.play_later()?;
 
-        let speed = self.speed;
-        for keycode in self.moving.clone() {
-            match keycode {
-                Keycode::Up => {
-                    let new_pos_y = (0. as f32).max(self.pos.y - speed);
-                    let diff_pos_y = self.pos.y - new_pos_y;
-                    self.pos.y = new_pos_y;
-                    for bullet in self.bullets.iter_mut() {
-                        bullet.position.y = bullet.position.y - diff_pos_y;
+        while timer::check_update_time(ctx, self.target_fps) {
+            for bullet in self.bullets.iter_mut() {
+                bullet.update(ctx)?;
+            }
+
+            let speed = self.speed;
+            for keycode in self.moving.clone() {
+                match keycode {
+                    KeyCode::Up => {
+                        let new_pos_y = (0. as f32).max(self.pos.y - speed);
+                        let diff_pos_y = self.pos.y - new_pos_y;
+                        self.pos.y = new_pos_y;
+                        for bullet in self.bullets.iter_mut() {
+                            bullet.position.y = bullet.position.y - diff_pos_y;
+                        }
                     }
-                }
-                Keycode::Down => {
-                    let new_pos_y = (self.window.height - 38. as f32).min(self.pos.y + self.speed);
-                    let diff_pos_y = new_pos_y - self.pos.y;
-                    self.pos.y = new_pos_y;
-                    for bullet in self.bullets.iter_mut() {
-                        bullet.position.y = bullet.position.y + diff_pos_y;
+                    KeyCode::Down => {
+                        let new_pos_y =
+                            (self.window.height - 38. as f32).min(self.pos.y + self.speed);
+                        let diff_pos_y = new_pos_y - self.pos.y;
+                        self.pos.y = new_pos_y;
+                        for bullet in self.bullets.iter_mut() {
+                            bullet.position.y = bullet.position.y + diff_pos_y;
+                        }
                     }
-                }
-                Keycode::Left => {
-                    let new_pos_x = (0. as f32).max(self.pos.x - self.speed);
-                    let diff_pos_x = self.pos.x - new_pos_x;
-                    self.pos.x = new_pos_x;
-                    for bullet in self.bullets.iter_mut() {
-                        bullet.position.x = bullet.position.x - diff_pos_x;
+                    KeyCode::Left => {
+                        let new_pos_x = (0. as f32).max(self.pos.x - self.speed);
+                        let diff_pos_x = self.pos.x - new_pos_x;
+                        self.pos.x = new_pos_x;
+                        for bullet in self.bullets.iter_mut() {
+                            bullet.position.x = bullet.position.x - diff_pos_x;
+                        }
                     }
-                }
-                Keycode::Right => {
-                    let new_pos_x = (self.window.width - 49. as f32).min(self.pos.x + self.speed);
-                    let diff_pos_x = new_pos_x - self.pos.x;
-                    self.pos.x = new_pos_x;
-                    for bullet in self.bullets.iter_mut() {
-                        bullet.position.x = bullet.position.x + diff_pos_x;
+                    KeyCode::Right => {
+                        let new_pos_x =
+                            (self.window.width - 49. as f32).min(self.pos.x + self.speed);
+                        let diff_pos_x = new_pos_x - self.pos.x;
+                        self.pos.x = new_pos_x;
+                        for bullet in self.bullets.iter_mut() {
+                            bullet.position.x = bullet.position.x + diff_pos_x;
+                        }
                     }
+                    KeyCode::Z => {
+                        self.shoot_main(ctx)?;
+                    }
+                    _ => {}
                 }
-                Keycode::Z => {
-                    self.shoot_main(ctx)?;
-                }
-                _ => {}
             }
         }
 
@@ -209,35 +219,46 @@ impl event::EventHandler for MainState {
         Ok(())
     }
 
-    fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-        graphics::clear(ctx);
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
+        graphics::clear(ctx, Color::from((0., 0., 0.)));
 
-        self.draw_background(ctx)?;
         self.draw_stars(ctx)?;
         self.draw_player(ctx)?;
 
         let fps = format!(
-            "{:.*} bullets: {}",
+            "{:.*} bullets: {} stars {} music {:?}",
             1,
-            timer::get_fps(ctx),
-            self.bullets.len()
+            timer::fps(ctx),
+            self.bullets.len(),
+            self.stars.len(),
+            self.music.elapsed()
         );
-        let text = graphics::Text::new(ctx, &fps, &self.font)?;
-        graphics::draw(ctx, &text, Point2::new(0., 0.), 0.)?;
+        let text_fragment = graphics::TextFragment::new(fps);
+        let mut text = graphics::Text::new(text_fragment);
+        text.set_font(self.font, graphics::Scale::uniform(16.));
 
-        graphics::present(ctx);
-        Ok(())
+        //graphics::draw(ctx, &text, DrawParam::default().dest(Point2::new(0., 0.)))?;
+
+        graphics::queue_text(ctx, &text, [0., 0.], None);
+        graphics::draw_queued_text(ctx, DrawParam::default(), None, FilterMode::Nearest)?;
+
+        graphics::present(ctx)
     }
 
-    fn key_down_event(&mut self, ctx: &mut Context, keycode: Keycode, _keymod: Mod, _repeat: bool) {
-        if let Keycode::Escape = keycode {
-            let _result = ctx.quit();
-            _result.expect("Error on quit");
+    fn key_down_event(
+        &mut self,
+        ctx: &mut Context,
+        keycode: KeyCode,
+        _keymods: KeyMods,
+        _repeat: bool,
+    ) {
+        if let KeyCode::Escape = keycode {
+            ggez::event::quit(ctx);
         }
         self.moving.insert(keycode);
     }
 
-    fn key_up_event(&mut self, _ctx: &mut Context, keycode: Keycode, _keymod: Mod, _repeat: bool) {
+    fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymods: KeyMods) {
         self.moving.remove(&keycode);
     }
 }

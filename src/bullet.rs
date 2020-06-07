@@ -1,5 +1,4 @@
-use ggez::*;
-use ggez::graphics::Point2;
+use ggez::{nalgebra::Point2, Context, GameResult};
 
 #[derive(Default, Debug)]
 pub struct Vector2D {
@@ -9,17 +8,14 @@ pub struct Vector2D {
 
 impl Vector2D {
     pub fn new(x: f32, y: f32) -> Self {
-        Self {
-            x: x,
-            y: y,
-        }
+        Self { x: x, y: y }
     }
 
     pub fn add(&self, direction: &Vector2D) -> Self {
         Self::new(self.x + direction.x, self.y + direction.y)
     }
 
-    pub fn to_point2(&self) -> Point2 {
+    pub fn to_point2(&self) -> Point2<f32> {
         Point2::new(self.x, self.y)
     }
 }
@@ -38,7 +34,7 @@ impl Bullet {
         }
     }
 
-    pub fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
+    pub fn update(&mut self, _ctx: &mut Context) -> GameResult {
         self.position.x = self.position.x + self.direction.x;
         self.position.y = self.position.y + self.direction.y;
 

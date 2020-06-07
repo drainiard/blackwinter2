@@ -1,8 +1,8 @@
-use ggez::graphics::Point2;
+use ggez::nalgebra::Point2;
 
 #[derive(Debug)]
 pub struct Starfield {
-    pub pos: Point2,
+    pub pos: Point2<f32>,
     pub speed: f32,
     pub color: u8,
 }
