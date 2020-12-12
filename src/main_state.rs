@@ -1,4 +1,5 @@
-use bullet::{Bullet, Vector2D};
+use crate::bullet::{Bullet, Vector2D};
+use crate::starfield::Starfield;
 use ggez::audio;
 use ggez::audio::SoundSource;
 use ggez::event::{self, KeyCode, KeyMods};
@@ -8,7 +9,6 @@ use ggez::nalgebra::Point2;
 use ggez::{timer, Context, GameResult};
 use rand;
 use rand::distributions::{IndependentSample, Range};
-use starfield::Starfield;
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -36,7 +36,7 @@ impl MainState {
     pub fn new(ctx: &mut Context, (width, height): (f32, f32)) -> GameResult<Self> {
         ggez::filesystem::print_all(ctx);
 
-        let font = graphics::Font::new(ctx, "/TerminusTTF.ttf")?;
+        let font = graphics::Font::new(ctx, "/game_sans_serif_7.ttf")?;
 
         let mut rng = rand::thread_rng();
         let mut stars = Vec::with_capacity(100);
@@ -120,7 +120,7 @@ impl MainState {
         let params: DrawParam = DrawParam::default().dest(Point2::new(self.pos.x, self.pos.y));
         graphics::draw(ctx, &image, params)?;
 
-        let bullet_image = graphics::Image::new(ctx, Path::new(&format!("/img6-1.png")))?;
+        let bullet_image = graphics::Image::new(ctx, Path::new(&format!("/img6-6.png")))?;
 
         let dead_bullets: Vec<usize> = self
             .bullets
@@ -146,8 +146,6 @@ impl MainState {
 
 impl event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
-        self.music.play_later()?;
-
         while timer::check_update_time(ctx, self.target_fps) {
             for bullet in self.bullets.iter_mut() {
                 bullet.update(ctx)?;
@@ -226,7 +224,7 @@ impl event::EventHandler for MainState {
         self.draw_player(ctx)?;
 
         let fps = format!(
-            "{:.*} bullets: {} stars {} music {:?}",
+            "{:.*}\nbullets {}\nstars {}\nmusic {:?}",
             1,
             timer::fps(ctx),
             self.bullets.len(),
@@ -235,11 +233,11 @@ impl event::EventHandler for MainState {
         );
         let text_fragment = graphics::TextFragment::new(fps);
         let mut text = graphics::Text::new(text_fragment);
-        text.set_font(self.font, graphics::Scale::uniform(16.));
+        text.set_font(self.font, graphics::Scale::uniform(10.));
 
         //graphics::draw(ctx, &text, DrawParam::default().dest(Point2::new(0., 0.)))?;
 
-        graphics::queue_text(ctx, &text, [0., 0.], None);
+        graphics::queue_text(ctx, &text, [20., 20.], None);
         graphics::draw_queued_text(ctx, DrawParam::default(), None, FilterMode::Nearest)?;
 
         graphics::present(ctx)
