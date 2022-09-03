@@ -1,29 +1,31 @@
-extern crate blackwinter2;
-extern crate ggez;
+use blackwinter2::{Game, GameResult};
 
-use blackwinter2::MainState;
-use ggez::{
-    conf::{WindowMode, WindowSetup},
-    event, ContextBuilder, GameResult,
-};
-use std::env;
-use std::path;
+use macroquad::prelude::*;
 
-pub fn main() -> GameResult {
-    let (width, height) = (320., 413.);
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Black Winter II : Final Assault".to_owned(),
+        window_width: 320,
+        window_height: 413,
+        ..Default::default()
+    }
+}
 
-    let mut cb = ContextBuilder::new("black_winter", "ggez")
-        .window_setup(WindowSetup::default().title("Black Winter II : Final Assault"))
-        .window_mode(WindowMode::default().dimensions(width, height));
+#[macroquad::main(window_conf)]
+async fn main() -> GameResult {
+    let conf = window_conf();
+    let mut game = Game::new(conf.window_width as f32, conf.window_height as f32).await?;
 
-    if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
-        let mut path = path::PathBuf::from(manifest_dir);
-        path.push("resources");
-        cb = cb.add_resource_path(path);
+    loop {
+        if is_quit_requested() {
+            break;
+        }
+
+        game.update().await?;
+        game.draw().await?;
+
+        next_frame().await
     }
 
-    let (ctx, events_loop) = &mut cb.build()?;
-    let state = &mut MainState::new(ctx, (width, height))?;
-
-    event::run(ctx, events_loop, state)
+    Ok(())
 }

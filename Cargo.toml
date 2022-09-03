@@ -5,8 +5,7 @@ authors = ["Nadir Sampaoli <nadirsampaoli@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ggez = "0.5"
-rand = "0.4"
+macroquad = "0.3"
 
 [workspace]
 members = ["extract_frx"]
