@@ -3,7 +3,6 @@ extern crate nom;
 
 use nom::le_u32;
 use std::env;
-use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
@@ -88,36 +87,39 @@ named!(frx_item_dat<&[u8], FrxItem>,
 
 named!(frx_items<&[u8], Vec<FrxItem>>, many0!(frx_item));
 
-pub fn main() {
-    if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
-        let mut resources_path = path::PathBuf::from(manifest_dir);
-        resources_path.push("resources");
-        let mut file = File::open(resources_path.join("FormBW.frx")).expect("file not found");
-        let mut buffer: Vec<u8> = Vec::new();
-        let _ = file.read_to_end(&mut buffer);
+pub fn main() -> Result<(), String> {
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").map_err(|err| err.to_string())?;
+    let mut resources_path = path::PathBuf::from(manifest_dir);
+    resources_path.push("resources");
+    let mut file = File::open(resources_path.join("FormBW.frx"))
+        .map_err(|err| format!("FormBW.frx: {}", err.to_string()))?;
+    let mut buffer: Vec<u8> = Vec::new();
+    let _ = file.read_to_end(&mut buffer);
 
-        let mut i = 1;
-        loop {
-            let tmp_buffer = buffer.clone();
-            let (new_buffer, item) = frx_item_bmp(&tmp_buffer)
-                .map_err(|err| err.description().to_owned())
-                .unwrap();
-            if item.ext == FrxExt::BMP {
-                println!("{:x?} {:x?}", item.length, item.content.len());
-                let mut extracted_file = File::create(
-                    resources_path
-                        .join("extracted")
-                        .join(format!("img_{:04}.bmp", i)),
-                )
-                .unwrap();
-                let _result = extracted_file.write_all(&item.content);
-            }
-            buffer = new_buffer.to_vec();
+    let mut i = 1;
+    loop {
+        let tmp_buffer = buffer.clone();
+        let (new_buffer, item) = frx_item_bmp(&tmp_buffer).map_err(|err| err.to_string())?;
 
-            if new_buffer.len() < 1 {
-                break;
-            }
-            i += 1;
+        if let FrxExt::BMP = item.ext {
+            println!("{:x?} {:x?}", item.length, item.content.len());
+
+            let extracted_path = resources_path
+                .join("extracted")
+                .join(format!("img_{:04}.bmp", i));
+            let mut extracted_file = File::create(&extracted_path)
+                .map_err(|err| format!("{:?}: {}", extracted_path, err.to_string()))?;
+
+            let _result = extracted_file.write_all(&item.content);
         }
+        buffer = new_buffer.to_vec();
+
+        if new_buffer.len() < 1 {
+            break;
+        }
+
+        i += 1;
     }
+
+    Ok(())
 }
